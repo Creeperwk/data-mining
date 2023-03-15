@@ -5,14 +5,19 @@ library(dplyr)
 library(broom)
 library(pROC)
 library(readr)
-
+library(plyr)
+library(skimr)
+library(knitr)
+library(randomForest)
+library(ROCR)
+library(rpart)
+library(rpart.plot)
 #knn
 group_19 <- read_csv("group_19.csv")
 data <- na.omit(group_19)
 
 data$class <- ifelse(data$y=='yes', 1, 0)
 data <- data[,-c(2,3,4,5,8,9,10,13,15,21)]
-data$default <- ifelse(data$default=='no',0,1)
 data$housing <- ifelse(data$housing=='no',0,1)
 data$loan <- ifelse(data$loan=='no',0,1)
 
@@ -67,4 +72,76 @@ pred.LD1 <-rep("0",nrow(data.lda.train))
 pred.LD1[data.lda.pred$x[,1] > 0.4] <- "1"
 mean(pred.LD1!=data.lda.train$class)
 
-#
+#Bagging and random forest
+
+trees.data<- group_19%>%
+  dplyr::select(age,duration,campaign,previous,emp.var.rate,y) # Select all the categorical variables and age
+trees.data$y<- as.factor(trees.data$y)
+
+set.seed(3)
+n <- nrow(trees.data)
+idx <- sample(1:n, round(0.2*n))
+rf.valid <- trees.data[idx,]
+rf.train <- trees.data[-idx,]
+rf.train.imputed <- na.roughfix(rf.train) 
+bagging <- randomForest(y~age + duration +  campaign  + previous + emp.var.rate, data=rf.train,
+                        mtry=4, ntree=200)
+rf <- randomForest(y~age + duration +  campaign  + previous + emp.var.rate, data=rf.train,
+                   ntree=200)
+
+rf.valid.imputed <- na.roughfix(rf.valid)
+bagging_prob <- predict(bagging, rf.valid.imputed, type="prob")
+rf_prob <- predict(rf, trees.valid.imputed, type="prob")
+
+bagging_pred <- prediction(bagging_prob[,2], rf.valid$y)
+bagging_AUC  <- performance(bagging_pred, "auc")@y.values[[1]]
+rf_pred <- prediction(rf_prob[,2], rf.valid$y)
+rf_AUC  <- performance(rf_pred, "auc")@y.values[[1]]
+print(c(bagging_AUC,rf_AUC))
+
+varImpPlot(rf, main="Predicting success in different variables")
+
+#Trees
+set.seed(4)
+n <- nrow(trees.data)
+trees.ind1 <- sample(c(1:n), round(n/2))
+trees.ind2 <- sample(c(1:n)[-trees.ind1], round(n/4))
+trees.ind3 <- setdiff(c(1:n),c(trees.ind1,trees.ind2))
+trees.train <- trees.data[trees.ind1, ]
+trees.valid <- trees.data[trees.ind2, ]
+trees.test  <- trees.data[trees.ind2, ]
+
+trees.data.rt <- rpart(y~age + duration +  campaign  + previous + emp.var.rate, data=trees.train, method="class")
+rpart.plot(trees.data.rt,type=2,extra=4)
+
+# training performance
+train.pred <- predict(trees.data.rt, newdata=trees.train[,-6],type="class")
+table(trees.train$y, train.pred)
+
+# validation performance
+valid.pred <- predict(trees.data.rt, newdata=trees.valid[,-6],type="class")
+table(trees.valid$y, valid.pred)
+
+train.table[1,1]/sum(train.table[1,]) # training sensitivity
+train.table[2,2]/sum(train.table[2,]) # training specificity
+valid.table[1,1]/sum(valid.table[1,]) # validation sensitivity
+valid.table[2,2]/sum(valid.table[2,]) # validation specificity
+
+#Full tree
+Full_tree <- rpart(y~age + duration +  campaign  + previous + emp.var.rate, data=trees.train, method="class",
+                   control=rpart.control(minsplit=2,minbucket=1,maxdepth=30,cp=-1))
+printcp(Full_tree)
+
+# prune the tree
+trees.rt.pruned <- prune(Full_tree, cp=0.012)
+rpart.plot(trees.rt.pruned)
+
+# training performance
+train.pred <- predict(trees.data.rt, newdata=trees.train[,-6],type="class")
+train.table <- table(trees.train$y, train.pred)
+train.table
+
+# validation performance
+valid.pred <- predict(trees.data.rt, newdata=trees.valid[,-6],type="class")
+valid.table <- table(trees.valid$y, valid.pred)
+valid.table
