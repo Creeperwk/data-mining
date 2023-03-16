@@ -12,6 +12,8 @@ library(randomForest)
 library(ROCR)
 library(rpart)
 library(rpart.plot)
+library(e1071)
+
 #knn
 group_19 <- read_csv("group_19.csv")
 data <- na.omit(group_19)
@@ -24,13 +26,13 @@ data$loan <- ifelse(data$loan=='no',0,1)
 
 set.seed(1)
 n <- nrow(data)
-ind1 <- sample(c(1:n),        floor(0.5*n)) 
-ind2 <- sample(c(1:n)[-ind1], floor(0.25* n)) 
-ind3 <- setdiff(c(1:n),c(ind1,ind2))
+knn.ind1 <- sample(c(1:n),        floor(0.5*n)) 
+knn.ind2 <- sample(c(1:n)[-knn.ind1], floor(0.25* n)) 
+knn.ind3 <- setdiff(c(1:n),c(knn.ind1,knn.ind2))
 
-data.knn.train <- data[ind1,]
-data.knn.valid <- data[ind2,]
-data.knn.test <- data[ind3,]
+data.knn.train <- data[knn.ind1,]
+data.knn.valid <- data[knn.ind2,]
+data.knn.test <- data[knn.ind3,]
 
 library(class)
 K <- c(1:15)
@@ -123,11 +125,11 @@ trees.data.rt <- rpart(y~age + duration +   loan + campaign  + previous + emp.va
 rpart.plot(trees.data.rt,type=2,extra=4)
 
 # training performance
-train.pred <- predict(trees.data.rt, newdata=trees.train[,-6],type="class")
+train.pred <- predict(trees.data.rt, newdata=trees.train[,-7],type="class")
 table(trees.train$y, train.pred)
 
 # validation performance
-valid.pred <- predict(trees.data.rt, newdata=trees.valid[,-6],type="class")
+valid.pred <- predict(trees.data.rt, newdata=trees.valid[,-7],type="class")
 table(trees.valid$y, valid.pred)
 
 train.table <- table(trees.train$y, train.pred)
@@ -155,3 +157,28 @@ train.table
 valid.pred <- predict(trees.data.rt, newdata=trees.valid[,-7],type="class")
 valid.table <- table(trees.valid$y, valid.pred)
 valid.table
+
+
+#Supporting vector machines and Kernelisation
+set.seed(5)
+
+svm.ind1 <- sample(c(1:n),        floor(0.5*n)) 
+svm.ind2 <- sample(c(1:n)[-svm.ind1], floor(0.25* n)) 
+svm.ind3 <- setdiff(c(1:n),c(svm.ind1,svm.ind2))
+data.svm.train <- data[svm.ind1,]
+data.svm.valid <- data[svm.ind2,]
+data.svm.test <- data[svm.ind3,]
+
+pred.error<-function(pred,truth){
+  mean(pred!=truth)
+}
+C.val <- c(0.1,0.5,1,2,5,10)
+C.error <- numeric(length(C.val))
+
+for (i in 1:length(C.val)) {
+  model <- svm(class~age+loan+duration+emp.var.rate,data=data.svm.train,type="C-classification",kernel="linear",cost=C.val[i]) #kernel will be explained in the next section
+  pred.model <- predict(model, data.svm.valid)
+  C.error[i] <- pred.error(pred.model, data.svm.valid$sp)
+}
+C.sel <- C.val[min(which.min(C.error))]
+C.sel
