@@ -161,13 +161,14 @@ valid.table
 
 #Supporting vector machines and Kernelisation
 set.seed(5)
-
-svm.ind1 <- sample(c(1:n),        floor(0.5*n)) 
-svm.ind2 <- sample(c(1:n)[-svm.ind1], floor(0.25* n)) 
-svm.ind3 <- setdiff(c(1:n),c(svm.ind1,svm.ind2))
-data.svm.train <- data[svm.ind1,]
-data.svm.valid <- data[svm.ind2,]
-data.svm.test <- data[svm.ind3,]
+svm.data<- na.omit(data)
+svm.n<- nrow(svm.data)
+svm.ind1 <- sample(c(1:svm.n),        floor(0.5*svm.n)) 
+svm.ind2 <- sample(c(1:svm.n)[-svm.ind1], floor(0.25* svm.n)) 
+svm.ind3 <- setdiff(c(1:svm.n),c(svm.ind1,svm.ind2))
+data.svm.train <- svm.data[svm.ind1,]
+data.svm.valid <- svm.data[svm.ind2,]
+data.svm.test <- svm.data[svm.ind3,]
 
 pred.error<-function(pred,truth){
   mean(pred!=truth)
@@ -178,7 +179,7 @@ C.error <- numeric(length(C.val))
 for (i in 1:length(C.val)) {
   model <- svm(class~age+loan+duration+emp.var.rate,data=data.svm.train,type="C-classification",kernel="linear",cost=C.val[i]) #kernel will be explained in the next section
   pred.model <- predict(model, data.svm.valid)
-  C.error[i] <- pred.error(pred.model, data.svm.valid$sp)
+  C.error[i] <- pred.error(pred.model, data.svm.valid$class)
 }
 C.sel <- C.val[min(which.min(C.error))]
 C.sel
