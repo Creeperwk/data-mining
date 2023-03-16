@@ -130,8 +130,10 @@ table(trees.train$y, train.pred)
 valid.pred <- predict(trees.data.rt, newdata=trees.valid[,-6],type="class")
 table(trees.valid$y, valid.pred)
 
+train.table <- table(trees.train$y, train.pred)
 train.table[1,1]/sum(train.table[1,]) # training sensitivity
 train.table[2,2]/sum(train.table[2,]) # training specificity
+valid.table <- table(trees.valid$y, valid.pred)
 valid.table[1,1]/sum(valid.table[1,]) # validation sensitivity
 valid.table[2,2]/sum(valid.table[2,]) # validation specificity
 
