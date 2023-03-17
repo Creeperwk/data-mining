@@ -170,7 +170,8 @@ data.svm.train <- svm.data[svm.ind1,]
 data.svm.valid <- svm.data[svm.ind2,]
 data.svm.test <- svm.data[svm.ind3,]
 
-pred.error<-function(pred,truth){
+#find best cost parameter
+pred.svm.error<-function(pred,truth){
   mean(pred!=truth)
 }
 C.val <- c(0.1,0.5,1,2,5,10)
@@ -183,3 +184,15 @@ for (i in 1:length(C.val)) {
 }
 C.sel <- C.val[min(which.min(C.error))]
 C.sel
+
+plot(C.val,C.error,type="b")
+abline(v=C.sel,lty=2)
+
+#svm model
+final.svm<-svm(class~age+loan+duration+emp.var.rate,data=data.svm.train,kernel="linear",cost=C.sel,type="C-classification")
+summary(final.svm)
+
+pred.svm.test<-predict(final.svm,data.svm.test)
+pred.svm.error(pred.svm.test,data.svm.test$class)
+
+table(data.svm.train$class,predict(final.svm))
