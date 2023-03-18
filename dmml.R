@@ -17,6 +17,7 @@ library(rpart.plot)
 library(e1071)
 library(neuralnet)
 library(NeuralNetTools)
+library(adabag)
 library(tidytext)
 
 #dataset
@@ -78,11 +79,6 @@ data.valid <- data[ind2,]
 data.test <- data[ind3,]
 
 ##knn
-library(kknn)
-
-knn<- kknn(y~.,train = data.train,test = data.test)
-summary(knn)
-
 class.rate<-numeric(25)
 for(k in 1:25) {
   pred.class <- knn(data.train[,-1], data.valid[,-1], data.train[,1], k=k)
@@ -179,7 +175,11 @@ nn.prob<-predict(nn,newdata=data.test)
 nn.pred<-ifelse(nn.prob[,2]>0.5,'yes','no')
 table(data.test$y,nn.pred)
 
+##Adaptive boosting
+boost<-boosting(y~.,data=data.train,mfinal =50)
+boost.pred<-predict(boost,newdata = data.test)$class
 
+table(data.test$y,boost.pred)
 #Accuracy, precision, recall, F1-score
 binary.class.metric <- function(true,predict,positive_level){
   accuracy = mean(true==predict)
@@ -214,6 +214,8 @@ tree.metric
 nn.metric<-binary.class.metric(true=data.test$y,predict=nn.pred,positive_level='yes')
 nn.metric
 
+boost.metric<-binary.class.metric(true=data.test$y,predict=boost.pred,positive_level='yes')
+boost.metric
 #visualization
 bind_rows(unlist(knn.metric),
           unlist(lda.metric),
@@ -221,8 +223,9 @@ bind_rows(unlist(knn.metric),
           unlist(bagging.metric),
           unlist(rf.metric),
           unlist(tree.metric),
-          unlist(nn.metric))%>%
-  mutate(model=c('KNN','LDA','QDA','Bagging','Random Forest','Decision Tree','Neural Network'))%>%
+          unlist(nn.metric),
+          unlist(boost.metric))%>%
+  mutate(model=c('KNN','LDA','QDA','Bagging','Random Forest','Decision Tree','Neural Network','Adaptive Boosting'))%>%
   pivot_longer(cols=-model,
                names_to = 'metric',
                values_to = 'value')%>%
