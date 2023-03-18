@@ -2,6 +2,8 @@ library(tidyverse)
 library(ggplot2)
 library(scales)
 library(dplyr)
+library(MASS)
+library(class)
 library(broom)
 library(pROC)
 library(readr)
@@ -13,186 +15,224 @@ library(ROCR)
 library(rpart)
 library(rpart.plot)
 library(e1071)
+library(neuralnet)
+library(NeuralNetTools)
+library(tidytext)
 
-#knn
+#dataset
 group_19 <- read_csv("group_19.csv")
-data <- na.omit(group_19)
 
-data$class <- ifelse(data$y=='yes', 1, 0)
-data <- data[,-c(2,3,4,5,8,9,10,13,15,21)]
-data$housing <- ifelse(data$housing=='no',0,1)
-data$loan <- ifelse(data$loan=='no',0,1)
-
-
-set.seed(1)
-n <- nrow(data)
-knn.ind1 <- sample(c(1:n),        floor(0.5*n)) 
-knn.ind2 <- sample(c(1:n)[-knn.ind1], floor(0.25* n)) 
-knn.ind3 <- setdiff(c(1:n),c(knn.ind1,knn.ind2))
-
-data.knn.train <- data[knn.ind1,]
-data.knn.valid <- data[knn.ind2,]
-data.knn.test <- data[knn.ind3,]
-
-library(class)
-K <- c(1:15)
-valid.knn.error <- c()
-for (k in K){
-  valid.knn.pred <- knn(data.knn.train, data.knn.valid, data.knn.train$class, k=k)
-  valid.knn.error[k] <- mean(data.knn.valid$class != valid.knn.pred)
-}
-
-plot(K, valid.knn.error, type="b", ylab="validation error rate")
-
-#k=5
-k.opt <- which.min(valid.knn.error)
-
-test.knn.pred <- knn(data.knn.train, data.knn.test, data.knn.train$class, k=k.opt)
-table(data.knn.test$class,test.knn.pred)
-
-
-
-#LDA
-set.seed(2)
-n <- nrow(data)
-lda.ind <- sample(c(1:n), floor(0.7*n))
-data.lda.train <- data[lda.ind,]
-data.lda.test  <- data[-lda.ind,]
-
-library(MASS)
-data.lda <- lda(class~., data=data.lda.train)
-data.lda 
-
-data.lda.pred <- predict(data.lda)
-ldahist(data = data.lda.pred$x[,1], g=data.lda.train$class)
-
-dataset <- data.frame(Type=data.lda.train$class, lda=data.lda.pred$x)
-ggplot(dataset, aes(x=LD1)) + 
-  geom_density(aes(group=Type, colour=Type, fill=Type), alpha=0.3)
-
-pred.LD1 <-rep("0",nrow(data.lda.train))
-pred.LD1[data.lda.pred$x[,1] > 0.4] <- "1"
-mean(pred.LD1!=data.lda.train$class)
-
-#Bagging and random forest
-
-trees.data<- group_19%>%
-  dplyr::select(age,duration,loan,campaign,previous,emp.var.rate,y) # Select all the categorical variables and age
-trees.data$y<- as.factor(trees.data$y)
-trees.data$loan<- as.factor(trees.data$loan)
-
-set.seed(3)
-
-ggplot(trees.data, aes(loan, fill=y)) + geom_bar() +
-  xlab("Have a personal loan or not") + ylab("Number of clients") +
-  ggtitle("Number of clients per having a loan or not") +
+#information visualization
+ggplot(group_19, aes(marital, fill=y)) + geom_bar() +
+  xlab("Marital") + ylab("Number of clients") +
+  ggtitle("Number of clients with different marital") +
   scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
   theme(plot.title = element_text(hjust = 0.5, size = 10))
 
-n <- nrow(trees.data)
-idx <- sample(1:n, round(0.2*n))
-rf.valid <- trees.data[idx,]
-rf.train <- trees.data[-idx,]
-rf.train.imputed <- na.roughfix(rf.train) 
-bagging <- randomForest(y~age + duration +  loan + campaign  + previous + emp.var.rate, data=rf.train.imputed,
-                        mtry=4, ntree=200)
-rf <- randomForest(y~age + duration +  campaign  +  loan +previous + emp.var.rate, data=rf.train.imputed,
-                   ntree=200)
+ggplot(group_19, aes(default, fill=y)) + geom_bar() +
+  xlab("Credit in default") + ylab("Number of clients") +
+  ggtitle("Number of clients with credit in default") +
+  scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 10))
 
-rf.valid.imputed <- na.roughfix(rf.valid)
-bagging_prob <- predict(bagging, rf.valid.imputed, type="prob")
-rf_prob <- predict(rf, rf.valid.imputed, type="prob")
+ggplot(group_19, aes(housing, fill=y)) + geom_bar() +
+  xlab("Housing loan") + ylab("Number of clients") +
+  ggtitle("Number of clients with a housing loan or not") +
+  scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 10))
 
-bagging_pred <- prediction(bagging_prob[,2], rf.valid$y)
-bagging_AUC  <- performance(bagging_pred, "auc")@y.values[[1]]
-rf_pred <- prediction(rf_prob[,2], rf.valid$y)
-rf_AUC  <- performance(rf_pred, "auc")@y.values[[1]]
-print(c(bagging_AUC,rf_AUC))
+ggplot(group_19, aes(loan, fill=y)) + geom_bar() +
+  xlab("Have a personal loan or not") + ylab("Number of clients") +
+  ggtitle("Number of clients with a personal loan or not") +
+  scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 10))
 
-varImpPlot(rf, main="Predicting success in different variables")
+#data cleaning
+min.max.scale<- function(x){
+  (x-min(x))/(max(x)-min(x))
+  }
 
-#Trees
-set.seed(4)
-n <- nrow(trees.data)
-trees.ind1 <- sample(c(1:n), round(n/2))
-trees.ind2 <- sample(c(1:n)[-trees.ind1], round(n/4))
-trees.ind3 <- setdiff(c(1:n),c(trees.ind1,trees.ind2))
-trees.train <- trees.data[trees.ind1, ]
-trees.valid <- trees.data[trees.ind2, ]
-trees.test  <- trees.data[trees.ind2, ]
+data <- na.omit(group_19) %>%
+  dplyr::select(y,age,marital,loan,duration,cons.price.idx) %>%
+  mutate(loan=as.factor(loan),y=as.factor(y)) %>%
+  as.data.frame()
 
-trees.data.rt <- rpart(y~age + duration +   loan + campaign  + previous + emp.var.rate, data=trees.train, method="class")
-rpart.plot(trees.data.rt,type=2,extra=4)
+data <- cbind(data,model.matrix(~marital-1, data=data))
 
-# training performance
-train.pred <- predict(trees.data.rt, newdata=trees.train[,-7],type="class")
-table(trees.train$y, train.pred)
+data <- data[,-3] %>%
+  mutate_if(.predicate=is.numeric,
+            .funs=min.max.scale)%>%
+  as.data.frame()
+  
+data$loan<-ifelse(data$loan=="no",0,1)
 
-# validation performance
-valid.pred <- predict(trees.data.rt, newdata=trees.valid[,-7],type="class")
-table(trees.valid$y, valid.pred)
+#split into train set and text set
+set.seed(123)
+n <- nrow(data)
+ind1 <- sample(c(1:n),        floor(0.5*n)) 
+ind2 <- sample(c(1:n)[-ind1], floor(0.25* n)) 
+ind3 <- setdiff(c(1:n),c(ind1,ind2))
 
-train.table <- table(trees.train$y, train.pred)
-train.table[1,1]/sum(train.table[1,]) # training sensitivity
-train.table[2,2]/sum(train.table[2,]) # training specificity
-valid.table <- table(trees.valid$y, valid.pred)
-valid.table[1,1]/sum(valid.table[1,]) # validation sensitivity
-valid.table[2,2]/sum(valid.table[2,]) # validation specificity
+data.train <- data[ind1,]
+data.valid <- data[ind2,]
+data.test <- data[ind3,]
+
+##knn
+library(kknn)
+
+knn<- kknn(y~.,train = data.train,test = data.test)
+summary(knn)
+
+class.rate<-numeric(25)
+for(k in 1:25) {
+  pred.class <- knn(data.train[,-1], data.valid[,-1], data.train[,1], k=k)
+  class.rate[k] <- sum(pred.class==data.valid[,1])/length(pred.class)
+}
+plot(c(1:25), class.rate, type="b",
+     main="Correct classification rates on the validation data for a range of k",
+     xlab="k",ylab="Correct Classification Rate",cex.main=0.7)
+
+k.opt <- which.max(class.rate)
+
+knn.pred <- knn(data.train[,-1], data.test[,-1], data.train[,1], k=k.opt)
+table(data.test[,1],knn.pred)
+
+##LDA
+lda <- lda(y~age+loan+duration+cons.price.idx, data=data.train)
+
+lda.pred <- predict(lda,newdata= data.test)$class
+table(data.test$y,lda.pred)
+
+##QDA
+qda <- qda(y~age+loan+duration+cons.price.idx, data=data.train)
+
+qda.pred<- predict(qda,newdata= data.test)$class
+table(data.test$y,qda.pred)
+
+##Bagging and random forest
+bagging<- randomForest(y~.,data = data.train,mtry=4,ntree=200)
+rf <- randomForest(y~., data=data.train,ntree=200)
+
+bagging.pred <- predict(bagging, data.test, type="class")
+rf.pred <- predict(rf, data.test, type="class")
+
+table(data.test$y,bagging.pred)
+table(data.test$y,rf.pred)
+
+##Trees
+tree <- rpart(y~., data=data.train, method="class")
+rpart.plot(tree,type=2,extra=4)
+
+tree.pred <- predict(tree, newdata=data.test[,-1],type="class")
+table(data.test$y, tree.pred)
+
 
 #Full tree
-Full_tree <- rpart(y~age + duration +   loan + campaign  + previous + emp.var.rate, data=trees.train, method="class",
+set.seed(1)
+full.tree <- rpart(y~., data=data.train, method="class",
                    control=rpart.control(minsplit=2,minbucket=1,maxdepth=30,cp=-1))
-printcp(Full_tree)
+printcp(full.tree)
+plotcp(full.tree)
 
-# prune the tree
-trees.rt.pruned <- prune(Full_tree, cp=0.012)
-rpart.plot(trees.rt.pruned)
+tree.pruned <- prune(full.tree, cp=0.011)
+rpart.plot(tree.pruned)
 
-# training performance
-train.pred <- predict(trees.data.rt, newdata=trees.train[,-7],type="class")
-train.table <- table(trees.train$y, train.pred)
-train.table
-
-# validation performance
-valid.pred <- predict(trees.data.rt, newdata=trees.valid[,-7],type="class")
-valid.table <- table(trees.valid$y, valid.pred)
-valid.table
+tree.pruned.pred <- predict(tree.pruned, newdata=data.test[,-1],type="class")
+table(data.test$y, tree.pruned.pred)
 
 
-#Supporting vector machines and Kernelisation
-set.seed(5)
-svm.data<- na.omit(data)
-svm.n<- nrow(svm.data)
-svm.ind1 <- sample(c(1:svm.n),        floor(0.5*svm.n)) 
-svm.ind2 <- sample(c(1:svm.n)[-svm.ind1], floor(0.25* svm.n)) 
-svm.ind3 <- setdiff(c(1:svm.n),c(svm.ind1,svm.ind2))
-data.svm.train <- svm.data[svm.ind1,]
-data.svm.valid <- svm.data[svm.ind2,]
-data.svm.test <- svm.data[svm.ind3,]
+##Supporting vector machines and Kernelisation
+#svm<-svm(y~age+duration,data=data.train,kernel='linear',type="C-classification")
+#svm.pred<-predict(svm,newdata=data.test,type='class')
 
-#find best cost parameter
-pred.svm.error<-function(pred,truth){
-  mean(pred!=truth)
+#table(data.test$y,svm.pred)
+
+##Neural Networks
+nn1<-neuralnet(y~.,data=data.train,hidden=3,linear.output=F,err.fct = 'ce',
+               likelihood=TRUE, threshold = 0.1)
+nn2<-neuralnet(y~.,data=data.train,hidden=5,linear.output=F,err.fct = 'ce',
+               likelihood=TRUE, threshold = 0.1)
+nn3<-neuralnet(y~.,data=data.train,hidden=7,linear.output=F,err.fct = 'ce',
+               likelihood=TRUE, threshold = 0.1)
+
+nn.class <- tibble('Network' = rep(c("NN_3","NN_5", "NN_7"), each = 3),
+                       'Metric' = rep(c('AIC', 'BIC','CE loss'), length.out=9),
+                       'Value' = c(nn1$result.matrix[4,1],
+                                   nn1$result.matrix[5,1],
+                                   nn1$result.matrix[1,1],
+                                   nn2$result.matrix[4,1],
+                                   nn2$result.matrix[5,1],
+                                   nn2$result.matrix[1,1],
+                                   nn3$result.matrix[4,1],
+                                   nn3$result.matrix[5,1],
+                                   nn3$result.matrix[1,1]))
+nn_ggplot <- nn.class %>%
+  ggplot(aes(Network, Value, fill=Metric)) +
+  geom_col(position = 'dodge')  +
+  ggtitle("AIC, BIC, and cross entropy loss of the neural networks")
+nn_ggplot
+
+nn<-nn2
+plot(nn)
+
+nn.prob<-predict(nn,newdata=data.test)
+nn.pred<-ifelse(nn.prob[,2]>0.5,'yes','no')
+table(data.test$y,nn.pred)
+
+
+#Accuracy, precision, recall, F1-score
+binary.class.metric <- function(true,predict,positive_level){
+  accuracy = mean(true==predict)
+  precision = sum(true==positive_level & predict==positive_level)/sum(predict==positive_level)
+  recall = sum(true==positive_level & predict==positive_level)/sum(true==positive_level)
+  fl_score = 2*precision*recall/(precision+recall)
+  return(list(accuracy = accuracy,
+              precision = precision,
+              recall = recall,
+              fl_score = fl_score))
 }
-C.val <- c(0.1,0.5,1,2,5,10)
-C.error <- numeric(length(C.val))
 
-for (i in 1:length(C.val)) {
-  model <- svm(class~age+loan+duration+emp.var.rate,data=data.svm.train,type="C-classification",kernel="linear",cost=C.val[i]) #kernel will be explained in the next section
-  pred.model <- predict(model, data.svm.valid)
-  C.error[i] <- pred.error(pred.model, data.svm.valid$class)
-}
-C.sel <- C.val[min(which.min(C.error))]
-C.sel
+knn.metric<-binary.class.metric(true=data.test$y,predict=knn.pred,positive_level='yes')
+knn.metric
 
-plot(C.val,C.error,type="b")
-abline(v=C.sel,lty=2)
+lda.metric<-binary.class.metric(true=data.test$y,predict=lda.pred,positive_level='yes')
+lda.metric
 
-#svm model
-final.svm<-svm(class~age+loan+duration+emp.var.rate,data=data.svm.train,kernel="linear",cost=C.sel,type="C-classification")
-summary(final.svm)
+qda.metric<-binary.class.metric(true=data.test$y,predict=qda.pred,positive_level='yes')
+qda.metric
 
-pred.svm.test<-predict(final.svm,data.svm.test)
-pred.svm.error(pred.svm.test,data.svm.test$class)
+bagging.metric<-binary.class.metric(true=data.test$y,predict=bagging.pred,positive_level='yes')
+bagging.metric
 
-table(data.svm.train$class,predict(final.svm))
+rf.metric<-binary.class.metric(true=data.test$y,predict=rf.pred,positive_level='yes')
+rf.metric
+
+tree.metric<-binary.class.metric(true=data.test$y,predict=tree.pred,positive_level='yes')
+tree.metric
+
+
+nn.metric<-binary.class.metric(true=data.test$y,predict=nn.pred,positive_level='yes')
+nn.metric
+
+#visualization
+bind_rows(unlist(knn.metric),
+          unlist(lda.metric),
+          unlist(qda.metric),
+          unlist(bagging.metric),
+          unlist(rf.metric),
+          unlist(tree.metric),
+          unlist(nn.metric))%>%
+  mutate(model=c('KNN','LDA','QDA','Bagging','Random Forest','Decision Tree','Neural Network'))%>%
+  pivot_longer(cols=-model,
+               names_to = 'metric',
+               values_to = 'value')%>%
+  mutate(model = reorder_within(x = model,by = value,within = metric)) %>%
+  ggplot(aes(x = model,y = value,fill = metric)) +
+  geom_col() +
+  scale_x_reordered() +
+  facet_wrap(~metric,scales = 'free') +
+  labs(x ='Model',
+       y ='Value',
+       fill = 'Model') +
+  coord_flip() +
+  theme_test() 
