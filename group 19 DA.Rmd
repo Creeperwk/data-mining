@@ -1,11 +1,16 @@
 ---
 title: "Data Mining"
-output: pdf_document
 date: "2023-03-19"
+output:
+  pdf_document:
+          latex_engine: xelatex
+          number_sections: yes
+fig_caption: yes
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+
 ```
 
 ```{r library, echo=FALSE,warning=FALSE,message=FALSE}
@@ -32,32 +37,45 @@ library(adabag)
 library(tidytext)
 ```
 
+# Introduction
+
+The group 19's work aims to investigate whether the client will subscribe the term deposit with 10,000 records from bank marketing dataset. There are 20 parameters that will affect people's wish. Because of too many parameters, we select part of them from four fields (bank client data, related with the last contact of the current campaign,other attributes, and social and economic context attributes). 
+
+Our work is made up with three parts. First, we try to select approximate parameters to build following models, and this will be done by making plots for parameters to see if they have significant differences in success. In this part, age, marital, loan, duration and cons.price.idx are selected. Then, we use 8 methods (adaptive boosting, decision tree, bagging, random forest, neural network, LDA, KNN, QDA) to forecast the number that client will subscribe or not and compare them with the true consequences. Finally, by comparing 8 methods in 4 indexes, we get the most efficient one adaptive boosting.
+
 ```{r dataset,echo=FALSE}
 #dataset
-group_19 <- read.csv("group_19.csv")
+group_19 <- read_csv("group_19.csv")
 ```
 
-```{r, echo=FALSE}
-#information visualization
-ggplot(group_19, aes(marital, fill=y)) + geom_bar() +
-  xlab("Marital") + ylab("Number of clients") +
-  ggtitle("Number of clients with different marital") +
+# Data selection
+
+Before data cleaning, we need to choose parameters. Few parameters' plots are shown below to illustrate that there are slightly differences in proportion when things occur in different choices. In figure 1, though clients have housing loan or not, the figure does not show significant difference which indicates that it is useless for predicting. 
+
+```{r,echo=FALSE,fig.align="center",out.width="70%", fig.pos="h",fig.cap="Barchart of Housing loan and Number of clients"}
+ggplot(group_19, aes(housing, fill=y)) + geom_bar() +
+  xlab("Housing loan") + ylab("Number of clients") +
+  ggtitle("Number of clients with a housing loan or not") +
   scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
   theme(plot.title = element_text(hjust = 0.5, size = 10))
 ```
+In addition, same as figure 1, the figure 2 also shows the same consequence, so such parameters we choose to exclude.
 
-```{r,echo=FALSE}
+
+```{r,echo=FALSE,fig.pos="h",fig.align="center",out.width="70%",fig.cap="Barchart of Credit of default and Number of clients"}
 ggplot(group_19, aes(default, fill=y)) + geom_bar() +
   xlab("Credit in default") + ylab("Number of clients") +
   ggtitle("Number of clients with credit in default") +
   scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
   theme(plot.title = element_text(hjust = 0.5, size = 10))
 ```
+Besides that, some parameters seem to be useless which only contain no and NA, so we choose to reject them, and for the rest parameters, we randomly choose part of them, and finally, the parameters age, marital, loan, duration and cons.price.idx are left for the following work.
 
-```{r,echo=FALSE}
-ggplot(group_19, aes(housing, fill=y)) + geom_bar() +
-  xlab("Housing loan") + ylab("Number of clients") +
-  ggtitle("Number of clients with a housing loan or not") +
+```{r, echo=FALSE,out.width= "80%"}
+#information visualization
+ggplot(group_19, aes(marital, fill=y)) + geom_bar() +
+  xlab("Marital") + ylab("Number of clients") +
+  ggtitle("Number of clients with different marital") +
   scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
   theme(plot.title = element_text(hjust = 0.5, size = 10))
 ```
@@ -103,7 +121,7 @@ data.valid <- data[ind2,]
 data.test <- data[ind3,]
 ```
 
-```{r,echo=FALSE}
+```{r 1,echo=FALSE}
 class.rate<-numeric(25)
 for(k in 1:25) {
   pred.class <- knn(data.train[,-1], data.valid[,-1], data.train[,1], k=k)
@@ -119,7 +137,7 @@ knn.pred <- knn(data.train[,-1], data.test[,-1], data.train[,1], k=k.opt)
 table(data.test[,1],knn.pred)
 ```
 
-```{r LDA,echo=FALSE}
+```{r 2LDA,echo=FALSE}
 ##LDA
 lda <- lda(y~age+loan+duration+cons.price.idx, data=data.train)
 
@@ -127,7 +145,7 @@ lda.pred <- predict(lda,newdata= data.test)$class
 table(data.test$y,lda.pred)
 ```
 
-```{r QDA, echo=FALSE}
+```{r 3QDA, echo=FALSE}
 ##QDA
 qda <- qda(y~age+loan+duration+cons.price.idx, data=data.train)
 
@@ -135,7 +153,7 @@ qda.pred<- predict(qda,newdata= data.test)$class
 table(data.test$y,qda.pred)
 ```
 
-```{r,echo=FALSE}
+```{r 45,echo=FALSE}
 ##Bagging and random forest
 bagging<- randomForest(y~.,data = data.train,mtry=4,ntree=200)
 rf <- randomForest(y~., data=data.train,ntree=200)
@@ -147,7 +165,7 @@ table(data.test$y,bagging.pred)
 table(data.test$y,rf.pred)
 ```
 
-```{r,echo=FALSE}
+```{r ,echo=FALSE}
 ##Trees
 tree <- rpart(y~., data=data.train, method="class")
 rpart.plot(tree,type=2,extra=4)
@@ -156,7 +174,7 @@ tree.pred <- predict(tree, newdata=data.test[,-1],type="class")
 table(data.test$y, tree.pred)
 ```
 
-```{r,echo=FALSE}
+```{r 6,echo=FALSE,eval=FALSE}
 #Full tree
 set.seed(1)
 full.tree <- rpart(y~., data=data.train, method="class",
@@ -171,7 +189,7 @@ tree.pruned.pred <- predict(tree.pruned, newdata=data.test[,-1],type="class")
 table(data.test$y, tree.pruned.pred)
 ```
 
-```{r,echo=FALSE}
+```{r 7,echo=FALSE}
 ##Neural Networks
 nn1<-neuralnet(y~.,data=data.train,hidden=3,linear.output=F,err.fct = 'ce',
                likelihood=TRUE, threshold = 0.1)
@@ -191,8 +209,6 @@ nn.class <- tibble('Network' = rep(c("NN_3","NN_5", "NN_7"), each = 3),
                                nn3$result.matrix[4,1],
                                nn3$result.matrix[5,1],
                                nn3$result.matrix[1,1]))
-```
-```{r,echo=FALSE}
 nn_ggplot <- nn.class %>%
   ggplot(aes(Network, Value, fill=Metric)) +
   geom_col(position = 'dodge')  +
@@ -207,18 +223,22 @@ nn.pred<-ifelse(nn.prob[,2]>0.5,'yes','no')
 table(data.test$y,nn.pred)
 ```
 
-```{r,echo=FALSE}
+```{r 8,echo=FALSE}
 ##Adaptive boosting
 boost<-boosting(y~.,data=data.train,mfinal =50)
 boost.pred<-predict(boost,newdata = data.test)$class
 table(data.test$y,boost.pred)
 ```
+# Conclusion
+We get 8 outcomes with 4 situations which contains predicting no with no for real, predicting no with yes for real,predicting yes with no for real, and predicting yes with yes for real. By calculating four indexes (accuracy, fl_score, precision, and recall), we can list and visualize
+them into figure x. From this figure, we can clearly observe that all of 8 methods have high accuracy; adaptive boosting and bagging have high fl_score while random forest is the last place; random forest and adaptive boosting get high score in precision, but LDA, KNN, and QDA perform worse in this step; bagging and adaptive boosting hold the highest position in recall with random forest holding the lowest. 
 
+The reason why they all get high accuracy is that accuracy is calculated by the mean of true predictions.
 ```{r,echo=FALSE}
 #Accuracy, precision, recall, F1-score
 binary.class.metric <- function(true,predict,positive_level){
   accuracy = mean(true==predict)
-  precision = sum(true==positive_level & predict==positive_level)/sum(predict==positive_level)
+  precision = sum(true==positive_level & predict==positive_level)/sum(true==predict)
   recall = sum(true==positive_level & predict==positive_level)/sum(true==positive_level)
   fl_score = 2*precision*recall/(precision+recall)
   return(list(accuracy = accuracy,
@@ -228,7 +248,7 @@ binary.class.metric <- function(true,predict,positive_level){
 }
 ```
 
-```{r,echo=FALSE}
+```{r,include=FALSE,echo=FALSE}
 knn.metric<-binary.class.metric(true=data.test$y,predict=knn.pred,positive_level='yes')
 knn.metric
 
@@ -255,7 +275,7 @@ boost.metric<-binary.class.metric(true=data.test$y,predict=boost.pred,positive_l
 boost.metric
 ```
 
-```{r,echo=FALSE}
+```{r,echo=FALSE,fig.align='center',fig.cap="The Value of 8 models",fig.pos="h"}
 #visualization
 bind_rows(unlist(knn.metric),
           unlist(lda.metric),
@@ -280,3 +300,4 @@ bind_rows(unlist(knn.metric),
   coord_flip() +
   theme_test() 
 ```
+
