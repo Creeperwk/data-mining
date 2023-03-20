@@ -6,7 +6,6 @@ date: "2023-03-19"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
-setwd("C:/Users/53539/Documents")
 ```
 
 ```{r library, echo=FALSE,warning=FALSE,message=FALSE}
@@ -35,7 +34,7 @@ library(tidytext)
 
 ```{r dataset,echo=FALSE}
 #dataset
-group_19 <- read_csv("C:/Users/53539/Documents/group_19.csv")
+group_19 <- read.csv("group_19.csv")
 ```
 
 ```{r, echo=FALSE}
