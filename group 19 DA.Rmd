@@ -136,6 +136,9 @@ k.opt <- which.max(class.rate)
 knn.pred <- knn(data.train[,-1], data.test[,-1], data.train[,1], k=k.opt)
 table(data.test[,1],knn.pred)
 ```
+KNN:
+k-nearest neighbours is a nonparametric classification method. This means that a parametric model do not be assumed for the data or the classes, and thus don’t have to worry about diagnostic tests for normality or the like. For each point looking at the 𝑘 nearest labelled points to it, and predicting the class of this point to be the class that 9 the majority of its neighbours shares. When there is a tie, choosing one of these classes at random for our prediction and avoiding ties like this when there are two classes by choosing only odd numbers of 𝑘. However, for other problems where there are more than two classes, it is not necessarily choose 𝑘 to guarantee avoidance of ties.
+
 
 ```{r 2LDA,echo=FALSE}
 ##LDA
@@ -144,6 +147,9 @@ lda <- lda(y~age+loan+duration+cons.price.idx, data=data.train)
 lda.pred <- predict(lda,newdata= data.test)$class
 table(data.test$y,lda.pred)
 ```
+LDA:
+It is based on the idea of maximizing the inter-class mean and minimizing the intra-class variance. The idea is to project the data in low dimensions and project the data in the same class as close as possible to the projection points and as far as possible from the centroids of the projection points of the data in different classes after projection.
+
 
 ```{r 3QDA, echo=FALSE}
 ##QDA
@@ -152,6 +158,9 @@ qda <- qda(y~age+loan+duration+cons.price.idx, data=data.train)
 qda.pred<- predict(qda,newdata= data.test)$class
 table(data.test$y,qda.pred)
 ```
+QDA:
+QDA (Quadratic discriminant analysis) is a variant of LDA in which a single covariance matrix is estimated for each category of observations. QDA is particularly useful if it is known in advance that individual categories exhibit different covariances. the disadvantage of QDA is that it cannot be used as a dimensionality reduction technique.
+
 
 ```{r 45,echo=FALSE}
 ##Bagging and random forest
@@ -164,6 +173,10 @@ rf.pred <- predict(rf, data.test, type="class")
 table(data.test$y,bagging.pred)
 table(data.test$y,rf.pred)
 ```
+Bagging and random forest:
+The bagging method and random forests are generally applied in decision trees. Bagging, also known as Bootstrap aggregation, is an integrated learning method. Integration learning, in short, is the combination of multiple weak classifiers into strong classifiers. Bagging is the process of extracting subtraining sets from the original dataset by Bootstrap, then, modeling all subtraining sets, and finally voting decisions.
+Random forest is actually a modification of the bagging method, which selects m predictor variables from all variables. Random refers to the random extraction of N subsample spaces using the self-help method, and such subsample spaces can be extracted for the data itself or for the feature variables. Forest refers to the training of N decision trees using the set of N subsamples to make predictions, and it is compared to a forest because it uses the prediction results of multiple trees to vote for the final classification.
+
 
 ```{r ,echo=FALSE}
 ##Trees
@@ -188,6 +201,9 @@ rpart.plot(tree.pruned)
 tree.pruned.pred <- predict(tree.pruned, newdata=data.test[,-1],type="class")
 table(data.test$y, tree.pruned.pred)
 ```
+Decision tree:
+A decision tree is a machine learning method that is a tree structure (either binary or non-binary) in which each internal node represents a judgment on an attribute, each branch represents the output of a judgment result, and finally each leaf node represents a classification result.
+
 
 ```{r 7,echo=FALSE}
 ##Neural Networks
@@ -222,6 +238,9 @@ nn.prob<-predict(nn,newdata=data.test)
 nn.pred<-ifelse(nn.prob[,2]>0.5,'yes','no')
 table(data.test$y,nn.pred)
 ```
+Neural Networks:
+A neural network can start from a single layer perceptron and combine each summation unit and activation unit as neurons to obtain a multilayer perceptron, i.e., a general neural network. Here, the first and last input and output are called input and output layers, respectively; the layers composed of internal neurons are called hidden layers, and it is assumed that there are t hidden layers with pt neurons in each layer, and the superscript indicates the number of hidden layers and the subscript indicates the location of neurons in the layer. In addition, each unit between the layers is connected to each other, so it is also called fully connected network.
+
 
 ```{r 8,echo=FALSE}
 ##Adaptive boosting
@@ -229,6 +248,11 @@ boost<-boosting(y~.,data=data.train,mfinal =50)
 boost.pred<-predict(boost,newdata = data.test)$class
 table(data.test$y,boost.pred)
 ```
+Adaptive boosting:
+Adaptive Boosting helps to reduce the error of any classification learning algorithm by sequentially turning many weak classifiers into one strong classifier.
+For example, find a WEAK base algorithm A, and then use A to minimize the weight error. Algorithm A can use a single-level decision tree, and then by adding Adaptive Boosting, the algorithm will perform better and better.
+
+
 # Conclusion
 We get 8 outcomes with 4 situations which contains predicting no with no for real, predicting no with yes for real,predicting yes with no for real, and predicting yes with yes for real. By calculating four indexes (accuracy, fl_score, precision, and recall), we can list and visualize
 them into figure x. From this figure, we can clearly observe that all of 8 methods have high accuracy; adaptive boosting and bagging have high fl_score while random forest is the last place; random forest and adaptive boosting get high score in precision, but LDA, KNN, and QDA perform worse in this step; bagging and adaptive boosting hold the highest position in recall with random forest holding the lowest. 
