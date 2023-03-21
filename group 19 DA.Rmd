@@ -19,6 +19,8 @@ library(ggplot2)
 library(scales)
 library(dplyr)
 library(kableExtra)
+library(gridExtra)
+library(grid)
 library(MASS)
 library(class)
 library(broom)
@@ -54,8 +56,25 @@ group_19 <- read_csv("group_19.csv")
 ## Discarded variables
 Before data cleaning, we need to choose parameters. Few parameters' plots are shown below to illustrate that there are slightly differences in proportion when things occur in different choices. In figure 1, though clients have housing loan or not, the figure does not show significant difference which indicates that it is useless for predicting. 
 
+```{r table for raw variables, eval = TRUE,echo=FALSE}
+group_19[,1:9] %>%
+  head()%>%
+  kable(caption = '\\label{tab:summariesskim} A brief on data pt.1.',booktabs = TRUE, format = "latex", digits = 2) %>%
+  kable_styling(font_size = 10, latex_options = "HOLD_position")
+
+group_19[,10:17] %>%
+  head()%>%
+  kable(caption = '\\label{tab:summariesskim} A brief on data pt.2.',booktabs = TRUE, format = "latex", digits = 2) %>%
+  kable_styling(font_size = 10, latex_options = "HOLD_position")
+
+group_19[,18:21] %>%
+  head()%>%
+  kable(caption = '\\label{tab:summariesskim} A brief on data pt.3.',booktabs = TRUE, format = "latex", digits = 2) %>%
+  kable_styling(font_size = 10, latex_options = "HOLD_position")
+```
+
 ```{r,echo=FALSE,fig.align="center",out.width="70%", fig.pos="H",fig.cap="Barchart of Housing loan and Number of clients"}
-ggplot(group_19, aes(housing, fill=y)) + geom_bar() +
+p1<-ggplot(group_19, aes(housing, fill=y)) + geom_bar() +
   xlab("Housing loan") + ylab("Number of clients") +
   ggtitle("Number of clients with a housing loan or not") +
   scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
@@ -65,33 +84,19 @@ In addition, same as figure 1, the figure 2 also shows the same consequence, so 
 
 
 ```{r,echo=FALSE,fig.pos="H",fig.align="center",out.width="70%",fig.cap="Barchart of Credit of default and Number of clients"}
-ggplot(group_19, aes(default, fill=y)) + geom_bar() +
+p2<-ggplot(group_19, aes(default, fill=y)) + geom_bar() +
   xlab("Credit in default") + ylab("Number of clients") +
   ggtitle("Number of clients with credit in default") +
   scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
   theme(plot.title = element_text(hjust = 0.5, size = 10))
+  grid.arrange(p1,p2, ncol=2)
 ```
 Besides that, some parameters seem to be useless which only contain no and NA, so we choose to reject them, and for the rest parameters, we randomly choose part of them, and finally, the parameters age, marital, loan, duration and cons.price.idx are left for the following work.
 
 \newpage
-## Selected variables
-
-These variables are chosen because of their clear trend and representative values. A summary of the data distribution of selected variables is shown at the table below.
-```{r summary table for raw variables, eval = TRUE,echo=FALSE}
-my_skim <- skim_with(numeric = sfl(hist = NULL), 
-                    base = sfl(n = length))
-raw.data<- group_19%>%
-  dplyr::select(y,age,marital,loan,duration,cons.price.idx)
-my_skim(raw.data)%>%
-  transmute(Variable=skim_variable, n = n, Mean=numeric.mean, SD=numeric.sd,
-            Min=numeric.p0, Median=numeric.p50,  Max=numeric.p100,
-            IQR = numeric.p75-numeric.p50) %>%
-  kable(caption = '\\label{tab:summariesskim} Summary statistics 
-       on different variables.',booktabs = TRUE, format = "latex", digits = 2) %>%
-  kable_styling(font_size = 10, latex_options = "HOLD_position")
-```
 ## Data standardisation
-Different variables have significant difference in range and absolute values. There might be some bias in proceeding different methods on these variables, especially for Neural network. In order to keep the data consistant in all expreiencing methods, variables that exceed (0~1) will be standardised and the result will be shown as follow. After we did the standardisation, we randomly split the data into three different groups: 50% for training, 25% for testing and 25% for validation.
+
+These variables are chosen because of their clear trend and representative values. Since different variables have significant difference in range and absolute values, there might be some bias in proceeding different methods on these variables, especially for Neural network. In order to keep the data consistant in all expreiencing methods, categorical variables will be factorised and split into different dummy variables by using one-hot-encoding. Numerical variables that exceed (0~1) will be standardised and the result will be shown as follow. After we did the standardisation, we randomly split the data into three different groups: 50% for training, 25% for testing and 25% for validation.
 
 ```{r data cleaning,echo=FALSE,echo=FALSE}
 min.max.scale<- function(x){
@@ -115,6 +120,9 @@ data$loan<-ifelse(data$loan=="no",0,1)
 
 
 ```{r summary table for normalized variables, eval = TRUE,echo=FALSE}
+
+my_skim <- skim_with(numeric = sfl(hist = NULL), 
+                    base = sfl(n = length))
 my_skim(data)%>%
   transmute(Variable=skim_variable, n = n, Mean=numeric.mean, SD=numeric.sd,
             Min=numeric.p0, Median=numeric.p50,  Max=numeric.p100,
