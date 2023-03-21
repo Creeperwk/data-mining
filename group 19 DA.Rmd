@@ -1,6 +1,6 @@
 ---
-title: "Data Mining"
-date: "2023-03-19"
+title: "Data Mining Group 19"
+author: "Dongxu Li, Kuan Wang, Anwen Jin, Xuanming Zhang"
 output:
   pdf_document:
           latex_engine: xelatex
@@ -18,6 +18,7 @@ library(tidyverse)
 library(ggplot2)
 library(scales)
 library(dplyr)
+library(kableExtra)
 library(MASS)
 library(class)
 library(broom)
@@ -39,9 +40,9 @@ library(tidytext)
 
 # Introduction
 
-The group 19's work aims to investigate whether the client will subscribe the term deposit with 10,000 records from bank marketing dataset. There are 20 parameters that will affect people's wish. Because of too many parameters, we select part of them from four fields (bank client data, related with the last contact of the current campaign,other attributes, and social and economic context attributes). 
+The group 19's work aims to investigate whether the client will subscribe the term deposit with 10,000 records from bank marketing dataset. There are 20 parameters that will affect people's wish. Due to the high colinearities between some variables in the same field, we select part of them from each four fields (bank client data, related with the last contact of the current campaign, other attributes, and social and economic context attributes). 
 
-Our work is made up with three parts. First, we try to select approximate parameters to build following models, and this will be done by making plots for parameters to see if they have significant differences in success. In this part, age, marital, loan, duration and cons.price.idx are selected. Then, we use 8 methods (adaptive boosting, decision tree, bagging, random forest, neural network, LDA, KNN, QDA) to forecast the number that client will subscribe or not and compare them with the true consequences. Finally, by comparing 8 methods in 4 indexes, we get the most efficient one adaptive boosting.
+Our work is made up with three parts. First, we try to select approximate parameters to build following models, and this will be done by making plots for parameters to see if they have significant differences in success. In this part, age, marital, loan, duration and cons.price.idx are selected. Then, we use 8 methods (adaptive boosting, decision tree, bagging, random forest, neural network, LDA, KNN, QDA) to forecast the number that client will subscribe or not and compare them with the true consequences. Finally, by comparing the prediction results from 8 methods, the premium model is selected by choosing the optimal outcome.
 
 ```{r dataset,echo=FALSE}
 #dataset
@@ -50,9 +51,10 @@ group_19 <- read_csv("group_19.csv")
 
 # Data selection
 
+## Discarded variables
 Before data cleaning, we need to choose parameters. Few parameters' plots are shown below to illustrate that there are slightly differences in proportion when things occur in different choices. In figure 1, though clients have housing loan or not, the figure does not show significant difference which indicates that it is useless for predicting. 
 
-```{r,echo=FALSE,fig.align="center",out.width="70%", fig.pos="h",fig.cap="Barchart of Housing loan and Number of clients"}
+```{r,echo=FALSE,fig.align="center",out.width="70%", fig.pos="H",fig.cap="Barchart of Housing loan and Number of clients"}
 ggplot(group_19, aes(housing, fill=y)) + geom_bar() +
   xlab("Housing loan") + ylab("Number of clients") +
   ggtitle("Number of clients with a housing loan or not") +
@@ -62,7 +64,7 @@ ggplot(group_19, aes(housing, fill=y)) + geom_bar() +
 In addition, same as figure 1, the figure 2 also shows the same consequence, so such parameters we choose to exclude.
 
 
-```{r,echo=FALSE,fig.pos="h",fig.align="center",out.width="70%",fig.cap="Barchart of Credit of default and Number of clients"}
+```{r,echo=FALSE,fig.pos="H",fig.align="center",out.width="70%",fig.cap="Barchart of Credit of default and Number of clients"}
 ggplot(group_19, aes(default, fill=y)) + geom_bar() +
   xlab("Credit in default") + ylab("Number of clients") +
   ggtitle("Number of clients with credit in default") +
@@ -71,24 +73,27 @@ ggplot(group_19, aes(default, fill=y)) + geom_bar() +
 ```
 Besides that, some parameters seem to be useless which only contain no and NA, so we choose to reject them, and for the rest parameters, we randomly choose part of them, and finally, the parameters age, marital, loan, duration and cons.price.idx are left for the following work.
 
-```{r, echo=FALSE,out.width= "80%"}
-#information visualization
-ggplot(group_19, aes(marital, fill=y)) + geom_bar() +
-  xlab("Marital") + ylab("Number of clients") +
-  ggtitle("Number of clients with different marital") +
-  scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
-  theme(plot.title = element_text(hjust = 0.5, size = 10))
-```
+\newpage
+## Selected variables
 
-```{r,echo=FALSE}
-ggplot(group_19, aes(loan, fill=y)) + geom_bar() +
-  xlab("Have a personal loan or not") + ylab("Number of clients") +
-  ggtitle("Number of clients with a personal loan or not") +
-  scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
-  theme(plot.title = element_text(hjust = 0.5, size = 10))
+These variables are chosen because of their clear trend and representative values. A summary of the data distribution of selected variables is shown at the table below.
+```{r summary table for raw variables, eval = TRUE,echo=FALSE}
+my_skim <- skim_with(numeric = sfl(hist = NULL), 
+                    base = sfl(n = length))
+raw.data<- group_19%>%
+  dplyr::select(y,age,marital,loan,duration,cons.price.idx)
+my_skim(raw.data)%>%
+  transmute(Variable=skim_variable, n = n, Mean=numeric.mean, SD=numeric.sd,
+            Min=numeric.p0, Median=numeric.p50,  Max=numeric.p100,
+            IQR = numeric.p75-numeric.p50) %>%
+  kable(caption = '\\label{tab:summariesskim} Summary statistics 
+       on different variables.',booktabs = TRUE, format = "latex", digits = 2) %>%
+  kable_styling(font_size = 10, latex_options = "HOLD_position")
 ```
+## Data standardisation
+Different variables have significant difference in range and absolute values. There might be some bias in proceeding different methods on these variables, especially for Neural network. In order to keep the data consistant in all expreiencing methods, variables that exceed (0~1) will be standardised and the result will be shown as follow. After we did the standardisation, we randomly split the data into three different groups: 50% for training, 25% for testing and 25% for validation.
 
-```{r data cleaning,echo=FALSE}
+```{r data cleaning,echo=FALSE,echo=FALSE}
 min.max.scale<- function(x){
   (x-min(x))/(max(x)-min(x))
 }
@@ -108,6 +113,17 @@ data <- data[,-3] %>%
 data$loan<-ifelse(data$loan=="no",0,1)
 ```
 
+
+```{r summary table for normalized variables, eval = TRUE,echo=FALSE}
+my_skim(data)%>%
+  transmute(Variable=skim_variable, n = n, Mean=numeric.mean, SD=numeric.sd,
+            Min=numeric.p0, Median=numeric.p50,  Max=numeric.p100,
+            IQR = numeric.p75-numeric.p50) %>%
+  kable(caption = '\\label{tab:summariesskim} Summary statistics 
+       on different variables.',booktabs = TRUE, format = "latex", digits = 2) %>%
+  kable_styling(font_size = 10, latex_options = "HOLD_position")
+```
+
 ```{r,echo=FALSE}
 #split into train set and text set
 set.seed(123)
@@ -121,7 +137,11 @@ data.valid <- data[ind2,]
 data.test <- data[ind3,]
 ```
 
-```{r 1,echo=FALSE}
+# Method selection
+## KNN
+KNN:
+k-nearest neighbours is a nonparametric classification method. This means that a parametric model do not be assumed for the data or the classes, and thus don’t have to worry about diagnostic tests for normality or the like. For each point looking at the 𝑘 nearest labelled points to it, and predicting the class of this point to be the class that 9 the majority of its neighbours shares. When there is a tie, choosing one of these classes at random for our prediction and avoiding ties like this when there are two classes by choosing only odd numbers of 𝑘. However, for other problems where there are more than two classes, it is not necessarily choose 𝑘 to guarantee avoidance of ties.
+```{r 1,echo=FALSE, fig.pos="H"}
 class.rate<-numeric(25)
 for(k in 1:25) {
   pred.class <- knn(data.train[,-1], data.valid[,-1], data.train[,1], k=k)
@@ -136,9 +156,11 @@ k.opt <- which.max(class.rate)
 knn.pred <- knn(data.train[,-1], data.test[,-1], data.train[,1], k=k.opt)
 table(data.test[,1],knn.pred)
 ```
-KNN:
-k-nearest neighbours is a nonparametric classification method. This means that a parametric model do not be assumed for the data or the classes, and thus don’t have to worry about diagnostic tests for normality or the like. For each point looking at the 𝑘 nearest labelled points to it, and predicting the class of this point to be the class that 9 the majority of its neighbours shares. When there is a tie, choosing one of these classes at random for our prediction and avoiding ties like this when there are two classes by choosing only odd numbers of 𝑘. However, for other problems where there are more than two classes, it is not necessarily choose 𝑘 to guarantee avoidance of ties.
 
+
+## LDA
+
+LDA is based on the idea of maximizing the inter-class mean and minimizing the intra-class variance. The idea is to project the data in low dimensions and project the data in the same class as close as possible to the projection points and as far as possible from the centroids of the projection points of the data in different classes after projection.
 
 ```{r 2LDA,echo=FALSE}
 ##LDA
@@ -147,9 +169,9 @@ lda <- lda(y~age+loan+duration+cons.price.idx, data=data.train)
 lda.pred <- predict(lda,newdata= data.test)$class
 table(data.test$y,lda.pred)
 ```
-LDA:
-It is based on the idea of maximizing the inter-class mean and minimizing the intra-class variance. The idea is to project the data in low dimensions and project the data in the same class as close as possible to the projection points and as far as possible from the centroids of the projection points of the data in different classes after projection.
 
+## QDA
+QDA (Quadratic discriminant analysis) is a variant of LDA in which a single covariance matrix is estimated for each category of observations. QDA is particularly useful if it is known in advance that individual categories exhibit different covariances. the disadvantage of QDA is that it cannot be used as a dimensionality reduction technique.
 
 ```{r 3QDA, echo=FALSE}
 ##QDA
@@ -158,8 +180,10 @@ qda <- qda(y~age+loan+duration+cons.price.idx, data=data.train)
 qda.pred<- predict(qda,newdata= data.test)$class
 table(data.test$y,qda.pred)
 ```
-QDA:
-QDA (Quadratic discriminant analysis) is a variant of LDA in which a single covariance matrix is estimated for each category of observations. QDA is particularly useful if it is known in advance that individual categories exhibit different covariances. the disadvantage of QDA is that it cannot be used as a dimensionality reduction technique.
+
+## Bagging and random forest
+The bagging method and random forests are generally applied in decision trees. Bagging, also known as Bootstrap aggregation, is an integrated learning method. Integration learning, in short, is the combination of multiple weak classifiers into strong classifiers. Bagging is the process of extracting subtraining sets from the original dataset by Bootstrap, then, modeling all subtraining sets, and finally voting decisions.
+Random forest is actually a modification of the bagging method, which selects m predictor variables from all variables. Random refers to the random extraction of N subsample spaces using the self-help method, and such subsample spaces can be extracted for the data itself or for the feature variables. Forest refers to the training of N decision trees using the set of N subsamples to make predictions, and it is compared to a forest because it uses the prediction results of multiple trees to vote for the final classification.
 
 
 ```{r 45,echo=FALSE}
@@ -173,9 +197,10 @@ rf.pred <- predict(rf, data.test, type="class")
 table(data.test$y,bagging.pred)
 table(data.test$y,rf.pred)
 ```
-Bagging and random forest:
-The bagging method and random forests are generally applied in decision trees. Bagging, also known as Bootstrap aggregation, is an integrated learning method. Integration learning, in short, is the combination of multiple weak classifiers into strong classifiers. Bagging is the process of extracting subtraining sets from the original dataset by Bootstrap, then, modeling all subtraining sets, and finally voting decisions.
-Random forest is actually a modification of the bagging method, which selects m predictor variables from all variables. Random refers to the random extraction of N subsample spaces using the self-help method, and such subsample spaces can be extracted for the data itself or for the feature variables. Forest refers to the training of N decision trees using the set of N subsamples to make predictions, and it is compared to a forest because it uses the prediction results of multiple trees to vote for the final classification.
+
+## Decision tree
+Decision tree:
+A decision tree is a machine learning method that is a tree structure (either binary or non-binary) in which each internal node represents a judgment on an attribute, each branch represents the output of a judgment result, and finally each leaf node represents a classification result.
 
 
 ```{r ,echo=FALSE}
@@ -187,7 +212,7 @@ tree.pred <- predict(tree, newdata=data.test[,-1],type="class")
 table(data.test$y, tree.pred)
 ```
 
-```{r 6,echo=FALSE,eval=FALSE}
+```{r 6,echo=FALSE,eval=FALSE, fig.pos="H"}
 #Full tree
 set.seed(1)
 full.tree <- rpart(y~., data=data.train, method="class",
@@ -201,11 +226,11 @@ rpart.plot(tree.pruned)
 tree.pruned.pred <- predict(tree.pruned, newdata=data.test[,-1],type="class")
 table(data.test$y, tree.pruned.pred)
 ```
-Decision tree:
-A decision tree is a machine learning method that is a tree structure (either binary or non-binary) in which each internal node represents a judgment on an attribute, each branch represents the output of a judgment result, and finally each leaf node represents a classification result.
 
+## Neural Networks
+neural network can start from a single layer perceptron and combine each summation unit and activation unit as neurons to obtain a multilayer perceptron, i.e., a general neural network. Here, the first and last input and output are called input and output layers, respectively; the layers composed of internal neurons are called hidden layers, and it is assumed that there are t hidden layers with pt neurons in each layer, and the superscript indicates the number of hidden layers and the subscript indicates the location of neurons in the layer. In addition, each unit between the layers is connected to each other, so it is also called fully connected network.
 
-```{r 7,echo=FALSE}
+```{r 7,echo=FALSE, fig.pos="H"}
 ##Neural Networks
 nn1<-neuralnet(y~.,data=data.train,hidden=3,linear.output=F,err.fct = 'ce',
                likelihood=TRUE, threshold = 0.1)
@@ -238,9 +263,10 @@ nn.prob<-predict(nn,newdata=data.test)
 nn.pred<-ifelse(nn.prob[,2]>0.5,'yes','no')
 table(data.test$y,nn.pred)
 ```
-Neural Networks:
-A neural network can start from a single layer perceptron and combine each summation unit and activation unit as neurons to obtain a multilayer perceptron, i.e., a general neural network. Here, the first and last input and output are called input and output layers, respectively; the layers composed of internal neurons are called hidden layers, and it is assumed that there are t hidden layers with pt neurons in each layer, and the superscript indicates the number of hidden layers and the subscript indicates the location of neurons in the layer. In addition, each unit between the layers is connected to each other, so it is also called fully connected network.
 
+## Adaptive boosting:
+Adaptive Boosting helps to reduce the error of any classification learning algorithm by sequentially turning many weak classifiers into one strong classifier.
+For example, find a WEAK base algorithm A, and then use A to minimize the weight error. Algorithm A can use a single-level decision tree, and then by adding Adaptive Boosting, the algorithm will perform better and better.
 
 ```{r 8,echo=FALSE}
 ##Adaptive boosting
@@ -248,9 +274,7 @@ boost<-boosting(y~.,data=data.train,mfinal =50)
 boost.pred<-predict(boost,newdata = data.test)$class
 table(data.test$y,boost.pred)
 ```
-Adaptive boosting:
-Adaptive Boosting helps to reduce the error of any classification learning algorithm by sequentially turning many weak classifiers into one strong classifier.
-For example, find a WEAK base algorithm A, and then use A to minimize the weight error. Algorithm A can use a single-level decision tree, and then by adding Adaptive Boosting, the algorithm will perform better and better.
+
 
 
 # Conclusion
