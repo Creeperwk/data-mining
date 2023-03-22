@@ -73,27 +73,28 @@ group_19[,18:21] %>%
   kable_styling(font_size = 10, latex_options = "HOLD_position")
 ```
 
-```{r,echo=FALSE,fig.align="center",out.width="70%", fig.pos="H",fig.cap="Barchart of Housing loan and Number of clients"}
+```{r,echo=FALSE,fig.align="center",out.width="80%", fig.pos="H",fig.cap="Barchart of Housing loan and Number of clients"}
 p1<-ggplot(group_19, aes(housing, fill=y)) + geom_bar() +
-  xlab("Housing loan") + ylab("Number of clients") +
+  xlab("Housing Loan") + ylab("Number of Clients") +
   ggtitle("Number of clients with a housing loan or not") +
   scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
   theme(plot.title = element_text(hjust = 0.5, size = 10))
 ```
-In addition, same as figure 1, the figure 2 also shows the same consequence, so such parameters we choose to exclude.
+
+In addition, just like housing loan, the credit in default also shows the same consequence. In this way, parameters like these two do not have significant difference in proportion so that they can not supply enough information. In this way, such parameters we choose to exclude.
 
 
-```{r,echo=FALSE,fig.pos="H",fig.align="center",out.width="70%",fig.cap="Barchart of Credit of default and Number of clients"}
+```{r,echo=FALSE,fig.pos="H",fig.align="center",out.width="80%",fig.cap="Barchart of Housing Loan and Credit of Default"}
 p2<-ggplot(group_19, aes(default, fill=y)) + geom_bar() +
-  xlab("Credit in default") + ylab("Number of clients") +
+  xlab("Credit in Default") + ylab("Number of Clients") +
   ggtitle("Number of clients with credit in default") +
   scale_fill_discrete(name = "", labels = c("Faliure", "Success")) +
   theme(plot.title = element_text(hjust = 0.5, size = 10))
   grid.arrange(p1,p2, ncol=2)
 ```
+
 Besides that, some parameters seem to be useless which only contain no and NA, so we choose to reject them, and for the rest parameters, we randomly choose part of them, and finally, the parameters age, marital, loan, duration and cons.price.idx are left for the following work.
 
-\newpage
 ## Data standardisation
 
 These variables are chosen because of their clear trend and representative values. Since different variables have significant difference in range and absolute values, there might be some bias in proceeding different methods on these variables, especially for Neural network. In order to keep the data consistant in all expreiencing methods, categorical variables will be factorised and split into different dummy variables by using one-hot-encoding. Numerical variables that exceed (0~1) will be standardised and the result will be shown as follow. After we did the standardisation, we randomly split the data into three different groups: 50% for training, 25% for testing and 25% for validation.
@@ -149,7 +150,7 @@ data.test <- data[ind3,]
 ## KNN
 KNN:
 k-nearest neighbours is a nonparametric classification method. This means that a parametric model do not be assumed for the data or the classes, and thus don’t have to worry about diagnostic tests for normality or the like. For each point looking at the 𝑘 nearest labelled points to it, and predicting the class of this point to be the class that 9 the majority of its neighbours shares. When there is a tie, choosing one of these classes at random for our prediction and avoiding ties like this when there are two classes by choosing only odd numbers of 𝑘. However, for other problems where there are more than two classes, it is not necessarily choose 𝑘 to guarantee avoidance of ties.
-```{r 1,echo=FALSE, fig.pos="H"}
+```{r 1,echo=FALSE, fig.align="center", fig.pos="H", fig.cap="Correct Classification Rate for different values of k"}
 class.rate<-numeric(25)
 for(k in 1:25) {
   pred.class <- knn(data.train[,-1], data.valid[,-1], data.train[,1], k=k)
@@ -214,20 +215,19 @@ A decision tree is a machine learning method that is a tree structure (either bi
 ```{r ,echo=FALSE}
 ##Trees
 tree <- rpart(y~., data=data.train, method="class")
-rpart.plot(tree,type=2,extra=4)
 
 tree.pred <- predict(tree, newdata=data.test[,-1],type="class")
-table(data.test$y, tree.pred)
 ```
 
-```{r 6,echo=FALSE,eval=FALSE, fig.pos="H"}
+```{r 6,echo=FALSE,fig.align="center", fig.pos="H", fig.cap="CP plot of full tree", out.width="80%"}
 #Full tree
 set.seed(1)
 full.tree <- rpart(y~., data=data.train, method="class",
                    control=rpart.control(minsplit=2,minbucket=1,maxdepth=30,cp=-1))
-printcp(full.tree)
 plotcp(full.tree)
+```
 
+```{r, echo=FALSE,fig.align="center", fig.pos="H", fig.cap="Pruned Decision Tree",out.width="80%"}
 tree.pruned <- prune(full.tree, cp=0.011)
 rpart.plot(tree.pruned)
 
@@ -238,7 +238,7 @@ table(data.test$y, tree.pruned.pred)
 ## Neural Networks
 neural network can start from a single layer perceptron and combine each summation unit and activation unit as neurons to obtain a multilayer perceptron, i.e., a general neural network. Here, the first and last input and output are called input and output layers, respectively; the layers composed of internal neurons are called hidden layers, and it is assumed that there are t hidden layers with pt neurons in each layer, and the superscript indicates the number of hidden layers and the subscript indicates the location of neurons in the layer. In addition, each unit between the layers is connected to each other, so it is also called fully connected network.
 
-```{r 7,echo=FALSE, fig.pos="H"}
+```{r 7,echo=FALSE, fig.align="center", fig.pos="H", fig.cap="AIC, BIC, and cross entropy loss of the neural networks"}
 ##Neural Networks
 nn1<-neuralnet(y~.,data=data.train,hidden=3,linear.output=F,err.fct = 'ce',
                likelihood=TRUE, threshold = 0.1)
@@ -260,8 +260,7 @@ nn.class <- tibble('Network' = rep(c("NN_3","NN_5", "NN_7"), each = 3),
                                nn3$result.matrix[1,1]))
 nn_ggplot <- nn.class %>%
   ggplot(aes(Network, Value, fill=Metric)) +
-  geom_col(position = 'dodge')  +
-  ggtitle("AIC, BIC, and cross entropy loss of the neural networks")
+  geom_col(position = 'dodge')
 nn_ggplot
 
 nn<-nn2
@@ -287,9 +286,9 @@ table(data.test$y,boost.pred)
 
 # Conclusion
 We get 8 outcomes with 4 situations which contains predicting no with no for real, predicting no with yes for real,predicting yes with no for real, and predicting yes with yes for real. By calculating four indexes (accuracy, fl_score, precision, and recall), we can list and visualize
-them into figure x. From this figure, we can clearly observe that all of 8 methods have high accuracy; adaptive boosting and bagging have high fl_score while random forest is the last place; random forest and adaptive boosting get high score in precision, but LDA, KNN, and QDA perform worse in this step; bagging and adaptive boosting hold the highest position in recall with random forest holding the lowest. 
+them into figure 6. From this figure, we can clearly observe that all of 8 methods have high accuracy; adaptive boosting and bagging have high fl_score while random forest is the last place; random forest and adaptive boosting get high score in precision, but LDA, KNN, and QDA perform worse in this step; bagging and adaptive boosting hold the highest position in recall with random forest holding the lowest. 
 
-The reason why they all get high accuracy is that accuracy is calculated by the mean of true predictions.
+Basing on the list, it seems that adapting boosting has the greatest performance, cause it has high levels in four comparisons. However, when focusing on the value, like accuracy, we can see that all methods holds on a high grades around 0.8, but the recall, even the greatest one only gets merely around 0.4 grade. It can be explained that though these methods have satisfied abilities to predict the right answer, they lack of the abilities to predict right answer for the real true situation.
 ```{r,echo=FALSE}
 #Accuracy, precision, recall, F1-score
 binary.class.metric <- function(true,predict,positive_level){
