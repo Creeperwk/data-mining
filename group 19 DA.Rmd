@@ -149,7 +149,7 @@ data.test <- data[ind3,]
 # Method selection
 ## KNN
 KNN:
-k-nearest neighbours is a nonparametric classification method. This means that a parametric model do not be assumed for the data or the classes, and thus don’t have to worry about diagnostic tests for normality or the like. For each point looking at the 𝑘 nearest labelled points to it, and predicting the class of this point to be the class that 9 the majority of its neighbours shares. When there is a tie, choosing one of these classes at random for our prediction and avoiding ties like this when there are two classes by choosing only odd numbers of 𝑘. However, for other problems where there are more than two classes, it is not necessarily choose 𝑘 to guarantee avoidance of ties.
+k-nearest neighbours is a nonparametric classification method. This means that a parametric model do not be assumed for the data or the classes, and thus don’t have to worry about diagnostic tests for normality or the like. For each point looking at the k nearest labelled points to it, and predicting the class of this point to be the class that 9 the majority of its neighbours shares. When there is a tie, choosing one of these classes at random for our prediction and avoiding ties like this when there are two classes by choosing only odd numbers of k. However, for other problems where there are more than two classes, it is not necessarily choose k to guarantee avoidance of ties.
 ```{r 1,echo=FALSE, fig.align="center", fig.pos="H", fig.cap="Correct Classification Rate for different values of k"}
 class.rate<-numeric(25)
 for(k in 1:25) {
@@ -165,19 +165,25 @@ k.opt <- which.max(class.rate)
 knn.pred <- knn(data.train[,-1], data.test[,-1], data.train[,1], k=k.opt)
 table(data.test[,1],knn.pred)
 ```
-
+This the correct rate on the validatation set of k values, it is clear that k=4 is the optimal in this case.
 
 ## LDA
 
 LDA is based on the idea of maximizing the inter-class mean and minimizing the intra-class variance. The idea is to project the data in low dimensions and project the data in the same class as close as possible to the projection points and as far as possible from the centroids of the projection points of the data in different classes after projection.
 
-```{r 2LDA,echo=FALSE}
+```{r 2LDA,echo=FALSE,fig.align="center", fig.pos="H", fig.cap="Density graph two classes separated by lda"}
 ##LDA
 lda <- lda(y~age+loan+duration+cons.price.idx, data=data.train)
 
 lda.pred <- predict(lda,newdata= data.test)$class
 table(data.test$y,lda.pred)
+
+lda.pred.tr <- predict(lda)
+dataset <- data.frame(Type=data.train$y, lda=lda.pred.tr$x)
+ggplot(dataset, aes(x=LD1)) + 
+  geom_density(aes(group=Type, colour=Type, fill=Type), alpha=0.3)
 ```
+From the density graph, we can conclude that the linear discriminant is not that effective in sepereating the two classes and make correct predictions.
 
 ## QDA
 QDA (Quadratic discriminant analysis) is a variant of LDA in which a single covariance matrix is estimated for each category of observations. QDA is particularly useful if it is known in advance that individual categories exhibit different covariances. the disadvantage of QDA is that it cannot be used as a dimensionality reduction technique.
@@ -207,6 +213,15 @@ table(data.test$y,bagging.pred)
 table(data.test$y,rf.pred)
 ```
 
+```{r 56 plots,echo=FALSE,out.width="70%",fig.pos="H", fig.cap="Variable importance plots for random forest"}
+varImpPlot(rf, main="Predicting success in data")
+```
+```{r 56 plot,echo=FALSE,out.width="70%",fig.pos="H", fig.cap="Variable importance plots for bagging"}
+varImpPlot(bagging, main="Predicting success in data")
+```
+According to these variable importance plots, duration is the most significant factor, followed by consumer price index and age, two categorical variables have very few impact in success.
+
+
 ## Decision tree
 Decision tree:
 A decision tree is a machine learning method that is a tree structure (either binary or non-binary) in which each internal node represents a judgment on an attribute, each branch represents the output of a judgment result, and finally each leaf node represents a classification result.
@@ -226,6 +241,7 @@ full.tree <- rpart(y~., data=data.train, method="class",
                    control=rpart.control(minsplit=2,minbucket=1,maxdepth=30,cp=-1))
 plotcp(full.tree)
 ```
+We used the smallest tree strategy for prune the tree, which refers the greatest cp value under the dashed line. In this case, cp=0.011.
 
 ```{r, echo=FALSE,fig.align="center", fig.pos="H", fig.cap="Pruned Decision Tree",out.width="80%"}
 tree.pruned <- prune(full.tree, cp=0.011)
@@ -234,9 +250,10 @@ rpart.plot(tree.pruned)
 tree.pruned.pred <- predict(tree.pruned, newdata=data.test[,-1],type="class")
 table(data.test$y, tree.pruned.pred)
 ```
+Applied the smallest tree strategy, the tree is pruned to the smallest one whose xerror rate is smaller than the dashed line above, which is (0.93521+0.042216)=0.977426. This turns out to be the Tree 5.
 
 ## Neural Networks
-neural network can start from a single layer perceptron and combine each summation unit and activation unit as neurons to obtain a multilayer perceptron, i.e., a general neural network. Here, the first and last input and output are called input and output layers, respectively; the layers composed of internal neurons are called hidden layers, and it is assumed that there are t hidden layers with pt neurons in each layer, and the superscript indicates the number of hidden layers and the subscript indicates the location of neurons in the layer. In addition, each unit between the layers is connected to each other, so it is also called fully connected network.
+Neural network can start from a single layer perceptron and combine each summation unit and activation unit as neurons to obtain a multilayer perceptron, i.e., a general neural network. Here, the first and last input and output are called input and output layers, respectively; the layers composed of internal neurons are called hidden layers, and it is assumed that there are t hidden layers with pt neurons in each layer, and the superscript indicates the number of hidden layers and the subscript indicates the location of neurons in the layer. In addition, each unit between the layers is connected to each other, so it is also called fully connected network.
 
 ```{r 7,echo=FALSE, fig.align="center", fig.pos="H", fig.cap="AIC, BIC, and cross entropy loss of the neural networks"}
 ##Neural Networks
@@ -270,6 +287,7 @@ nn.prob<-predict(nn,newdata=data.test)
 nn.pred<-ifelse(nn.prob[,2]>0.5,'yes','no')
 table(data.test$y,nn.pred)
 ```
+Since the smaller value of AIC and BIC indicates a better model,the second neural network with 1 hidden layer and 5 nodes seemed to be best, while BIC preferred the first neural network with 1 hidden layers and 3 nodes. The cross entropy loss agreed with AIC so we would probably choose the second neural network.
 
 ## Adaptive boosting:
 Adaptive Boosting helps to reduce the error of any classification learning algorithm by sequentially turning many weak classifiers into one strong classifier.
