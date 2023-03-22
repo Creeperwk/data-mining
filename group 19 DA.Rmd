@@ -321,7 +321,7 @@ table(data.test$y,boost.pred)
 
 # Conclusion
 We get 8 outcomes with 4 situations which contains predicting no with no for real, predicting no with yes for real,predicting yes with no for real, and predicting yes with yes for real. By calculating four indexes (accuracy, fl_score, precision, and recall), we can list and visualize
-them into figure 6. From this figure, we can clearly observe that all of 8 methods have high accuracy; adaptive boosting and bagging have high fl_score while random forest is the last place; random forest and adaptive boosting get high score in precision, but LDA, KNN, and QDA perform worse in this step; bagging and adaptive boosting hold the highest position in recall with random forest holding the lowest. 
+them into figure 9. From this figure, we can clearly observe that all of 8 methods have high accuracy; adaptive boosting and bagging have high fl_score while random forest is the last place; random forest and adaptive boosting get high score in precision, but LDA, KNN, and QDA perform worse in this step; bagging and adaptive boosting hold the highest position in recall with random forest holding the lowest. 
 
 ```{r,echo=FALSE}
 #Accuracy, precision, recall, F1-score
