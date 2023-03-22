@@ -289,9 +289,26 @@ table(data.test$y,nn.pred)
 ```
 Since the smaller value of AIC and BIC indicates a better model,the second neural network with 1 hidden layer and 5 nodes seemed to be best, while BIC preferred the first neural network with 1 hidden layers and 3 nodes. The cross entropy loss agreed with AIC so we would probably choose the second neural network.
 
-## Adaptive boosting:
-Adaptive Boosting helps to reduce the error of any classification learning algorithm by sequentially turning many weak classifiers into one strong classifier.
-For example, find a WEAK base algorithm A, and then use A to minimize the weight error. Algorithm A can use a single-level decision tree, and then by adding Adaptive Boosting, the algorithm will perform better and better.
+# Adaptive boosting:
+Adaptive boosting algorithm is an iterative boosting algorithm. Firstly, this algorithm gives a certain weight (equal weights at first time) to all observations and builds several models with weak classifiers. Secondly, it selects the model with minimal points that are wrongly classified and uses this model to predict the result and compare with the true value. Next, it assigns higher weights to points that are wrongly classified. These points will play a more significant role in building the new model. Then, this algorithm builds a new model with the adjusted weights. There is a high probability that this new model will perform better in predicting. Continuously repeat the above process. It will keep training models until and unless a lower error is received. Finally, the best weak classifiers obtained from each training are merged together as the final decision classifier with different weights. Weak classifier with better performance in predicting obtains the greater weight.
+
+The specific process is as follows:
+1.	Train the current iterative optimal weak classifier
+The optimal weak classifier is the weak classifier with the smallest error rate. The formula for calculating the error rate is:
+$$e_m= \Sigma^{N}_{i=1}W_{m,i}I(G_m(x_i)\neq y_i)$$
+Where m = 1, 2, ..., M, represents the m-th iteration. i represents the i-th sample. w is the sample weight. I indicates that the function takes a value of 1 or 0. When the expression in the parentheses of the I indicator function is true, the result of the I function is 1; when the expression in the parentheses of the I function is false, the result of the I function is 0. The weak classifier with the lowest error rate is taken as the optimal weak classifier for the current iteration.
+In the first round of iterative calculation, the sample weight is initialized to one-half of the total number of samples.
+2.	Calculate the weight of the optimal weak classifier
+The weight of the strong and weak classifier is only related to the error rate of the weak classifier. The weight calculation formula of the weak classifier is as follows:
+$$\alpha_m=\frac{1}{2}log(\dfrac{1-e_m}{e_m})$$
+It can be seen that when the error rate is smaller, the alpha value will be larger, which means the weight of the weak classifier will increase. On the contrary, when the error rate is larger, the alpha value will be smaller, and the weight of the weak classifier will decrease. In this way, the weak classifier with high classification accuracy can play a greater role, and the weak classifier with low accuracy can be weakened.
+3.	Update the sample weight according to the error rate
+The update of the sample weight is only related to the current sample weight and the weight of the weak classifier. The sample weight update formula is as follows:
+$$W_{m+1,i}=\dfrac{W_{m,i}}{z_m}exp(-\alpha_my_iG_m(x_i))$$
+$$Z_m = \Sigma^{N}_{i=1}W_{m,i}exp(-\alpha_my_iG_m(x_i))$$
+Where m = 1, 2, ..., M, represents the m-th iteration. i represents the i-th sample. w is the sample weight. alpha is the weight of the weak classifier. When the sample is correctly classified, the values of y and Gm are consistent, and the weight of the new sample becomes smaller; when the sample is misclassified, the values of y and Gm are inconsistent, and the weight of the new sample becomes larger. In this way, the weight of misclassified samples can be increased, so that they can be valued in the next iteration.
+4.	Iteration termination condition
+Repeat steps 1, 2, and 3 until the termination condition is reached. The termination condition is that the error rate of the strong classifier falls below the minimum error rate threshold or reaches the maximum number of iterations.
 
 ```{r 8,echo=FALSE}
 ##Adaptive boosting
@@ -306,7 +323,6 @@ table(data.test$y,boost.pred)
 We get 8 outcomes with 4 situations which contains predicting no with no for real, predicting no with yes for real,predicting yes with no for real, and predicting yes with yes for real. By calculating four indexes (accuracy, fl_score, precision, and recall), we can list and visualize
 them into figure 6. From this figure, we can clearly observe that all of 8 methods have high accuracy; adaptive boosting and bagging have high fl_score while random forest is the last place; random forest and adaptive boosting get high score in precision, but LDA, KNN, and QDA perform worse in this step; bagging and adaptive boosting hold the highest position in recall with random forest holding the lowest. 
 
-Basing on the list, it seems that adapting boosting has the greatest performance, cause it has high levels in four comparisons. However, when focusing on the value, like accuracy, we can see that all methods holds on a high grades around 0.8, but the recall, even the greatest one only gets merely around 0.4 grade. It can be explained that though these methods have satisfied abilities to predict the right answer, they lack of the abilities to predict right answer for the real true situation.
 ```{r,echo=FALSE}
 #Accuracy, precision, recall, F1-score
 binary.class.metric <- function(true,predict,positive_level){
@@ -374,3 +390,4 @@ bind_rows(unlist(knn.metric),
   theme_test() 
 ```
 
+Basing on the list, it seems that adapting boosting has the greatest performance, cause it has high levels in four comparisons. However, when focusing on the value, like accuracy, we can see that all methods holds on a high grades around 0.8, but the recall, even the greatest one only gets merely around 0.4 grade. It can be explained that though these methods have satisfied abilities to predict the right answer, they lack of the abilities to predict right answer for the real true situation.
