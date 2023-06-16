@@ -14,4 +14,5 @@ Moodle.
 - Compare the results to choose a final, “best” classification model, with justification given for the choice and comment on this model’s overall performance using appropriate evaluation measures.
 
 ## Conclusion
-- 
+- Basing on the list, it seems that adapting boosting has the greatest performance, cause it has high levels in four comparisons. 
+- All methods holds on a high grades around 0.8, but the recall, even the greatest one only gets merely around 0.4 grade. It can be explained that though these methods have satisfied abilities to predict the right answer, they lack of the abilities to predict right answer for the real true situation.
