@@ -1,10 +1,13 @@
-# Data mining project
+# Data mining project: Bank marketing
 
 ## Dataset
 - The dataset collected is related to 17 campaigns that occurred between May 2008 and November 2010,
 corresponding to a total of 41,118 clients.
 - For the project, 10,000 records are randomly allocated to each group; you can find the allocated dataset on
 Moodle.
+
+## Task
+Based on the dataset, predict if the client will subscribe (yes/no) a term deposit (variable y).
 
 ## Method
 - Perform exploratory analysis on the training data set.
