@@ -11,7 +11,7 @@ Based on the dataset, predict if the client will subscribe (yes/no) a term depos
 
 ## Method
 - Perform exploratory analysis on the training data set.
-- Apply five classification techniques (k.nearest neighbours, linear/quadratic discriminant analysis, tree-based methods, support vector machines, neural networks, adaptive boosting)
+- Apply six classification techniques (k.nearest neighbours, linear/quadratic discriminant analysis, tree-based methods, support vector machines, neural networks, adaptive boosting)
 - Create appropriate graphs or summaries that communicate the results from these methods.
 - Comment on the graphs/summaries and interpret the results.
 - Compare the results to choose a final, “best” classification model, with justification given for the choice and comment on this model’s overall performance using appropriate evaluation measures.
